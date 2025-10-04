@@ -1,5 +1,5 @@
 // server/src/services/prizeService.ts
-import type { PrizeTier, Prize } from "../types/prize.ts";
+import type { PrizeTier, Prize } from "../types/prize.js";
 export class PrizeService {
     private prizeTiers: PrizeTier[];
   

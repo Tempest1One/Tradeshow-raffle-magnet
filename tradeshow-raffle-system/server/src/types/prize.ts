@@ -1,3 +1,5 @@
+import { Document } from "mongoose";
+
 export interface PrizeTier {
     tier: number;
     name: string;
@@ -7,7 +9,7 @@ export interface PrizeTier {
     prizes: Prize[];
   }
   
-  export interface Prize {
+export interface Prize {
     id: string;
     name: string;
     description: string;
@@ -60,3 +62,56 @@ export const PRIZE_TIERS: PrizeTier[] = [
       prizes: []
     }
   ];
+
+export interface IEmailEntry {
+  email: string;
+  timestamp: Date;
+  isValid: boolean;
+  prizeTier?: number;
+  prizeWon?: string;
+  prizeId?: string;
+  sessionId?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+// Mongoose Document Type
+export interface IEmailEntryDocument extends IEmailEntry, Document {}
+
+// Prize Tier Interface
+export interface IPrizeTier {
+  tier: number;
+  name: string;
+  weight: number; // Selection probability (0-1)
+  totalPrizes: number;
+  remainingPrizes: number;
+  description: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Prize Interface
+export interface IPrize {
+  name: string;
+  description: string;
+  tier: number;
+  weight: number; // Individual prize weight within tier
+  totalQuantity: number;
+  remainingQuantity: number;
+  imageUrl?: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Mongoose Document Types
+export interface IPrizeTierDocument extends IPrizeTier, Document {}
+export interface IPrizeDocument extends IPrize, Document {}
+
+// Prize Selection Result
+export interface PrizeSelectionResult {
+  success: boolean;
+  prize?: IPrize;
+  tier?: IPrizeTier;
+  error?: string;
+}
