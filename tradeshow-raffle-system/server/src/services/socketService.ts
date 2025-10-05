@@ -1,8 +1,10 @@
 import { Server, Socket } from 'socket.io';
-import { EmailEntry } from '../models/EmailEntry';
-import { Prize } from '../models/Prize';
-import { Session } from '../models/Session';
-import type { PrizeSelectionResult } from '../types/prize';
+import { EmailEntry } from '../models/EmailEntry.ts';
+import { Prize } from '../models/Prize.ts';
+import { Session } from '../models/Session.ts';
+import { EmailEventHandler } from '../handlers/emailEventHandler.ts';
+import { PrizeService } from './prizeService.ts';
+import type { PrizeSelectionResult } from '../types/prize.ts';
 
 interface SocketData {
   sessionId?: string | null;
@@ -118,55 +120,22 @@ export class SocketService {
         return;
       }
 
-      // Check for duplicates
-      const existingEntry = await EmailEntry.findOne({
-        email: data.email,
-        sessionId: clientData.sessionId
-      });
-      if (existingEntry) {
-        socket.emit('email-submission-error', {
-          success: false,
-          message: 'Email already exists in this session'
-        });
-        return;
+      // Use centralized EmailEventHandler
+      const result = await EmailEventHandler.handleEmailSubmission(socket, data, clientData.sessionId);
+
+      if (result.success) {
+        // Emit success to sender
+        socket.emit('email-submitted', result);
+
+        // Broadcast to all clients using the handler's event creation method
+        this.io.emit('email-added', EmailEventHandler.createEmailAddedEvent(
+          data.email,
+          new Date(),
+          clientData.sessionId
+        ));
+      } else {
+        socket.emit('email-submission-error', result);
       }
-
-      // Create email entry
-      const emailEntry = new EmailEntry({
-        email: data.email,
-        ipAddress: data.ipAddress,
-        userAgent: data.userAgent,
-        sessionId: clientData.sessionId,
-        timestamp: new Date()
-      });
-
-      await emailEntry.save();
-
-      // Update session
-      await Session.findOneAndUpdate(
-        { sessionId: clientData.sessionId },
-        { $inc: { totalEntries: 1 } }
-      );
-
-      // Emit success to sender
-      socket.emit('email-submitted', {
-        success: true,
-        message: 'Email submitted successfully',
-        data: {
-          id: emailEntry._id,
-          email: emailEntry.email,
-          timestamp: emailEntry.timestamp
-        }
-      });
-
-      // Broadcast to all clients
-      this.io.emit('email-added', {
-        email: data.email,
-        timestamp: emailEntry.timestamp,
-        sessionId: clientData.sessionId
-      });
-
-      console.log(`📧 Email submitted: ${data.email} (Session: ${clientData.sessionId})`);
     } catch (error) {
       console.error('Error submitting email:', error);
       socket.emit('email-submission-error', {
@@ -333,12 +302,7 @@ export class SocketService {
   }
 
   private async selectPrize(): Promise<PrizeSelectionResult> {
-    // Placeholder for prize selection logic
-    // This will be implemented in the next task
-    return {
-      success: false,
-      error: 'Prize selection not implemented yet'
-    };
+    return await PrizeService.selectPrize();
   }
 
   // Public methods for external use

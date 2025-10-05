@@ -45,22 +45,22 @@ const PrizeTierSchema = new Schema<IPrizeTierDocument>({
 });
 
 // Indexes for performance
-PrizeTierSchema.index({ tier: 1 });
+// Note: tier index is automatically created by unique: true constraint
 PrizeTierSchema.index({ isActive: 1 });
 PrizeTierSchema.index({ remainingPrizes: 1 });
 
 // Virtual for prize depletion status
-PrizeTierSchema.virtual('isDepleted').get(function() {
+PrizeTierSchema.virtual('isDepleted').get(function () {
   return this.remainingPrizes === 0;
 });
 
 // Method to check if tier has available prizes
-PrizeTierSchema.methods.hasAvailablePrizes = function(): boolean {
+PrizeTierSchema.methods.hasAvailablePrizes = function (): boolean {
   return this.remainingPrizes > 0 && this.isActive;
 };
 
 // Method to decrement remaining prizes
-PrizeTierSchema.methods.decrementPrizes = function(amount: number = 1): boolean {
+PrizeTierSchema.methods.decrementPrizes = function (amount: number = 1): boolean {
   if (this.remainingPrizes >= amount) {
     this.remainingPrizes -= amount;
     return true;

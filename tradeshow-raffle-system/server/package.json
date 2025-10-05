@@ -7,7 +7,13 @@
   "scripts": {
     "dev": "nodemon src/app.ts",
     "build": "tsc",
-    "start": "node dist/app.js"
+    "start": "node dist/app.js",
+    "seed": "ts-node scripts/seedData.ts",
+    "test-connection": "ts-node scripts/testConnection.ts",
+    "cleanup": "ts-node scripts/cleanupData.ts",
+    "cleanup:all": "npm run cleanup all",
+    "cleanup:test": "npm run cleanup test",
+    "cleanup:stats": "npm run cleanup stats"
   },
   "keywords": [],
   "author": "",

@@ -12,7 +12,7 @@
  */
 
 import mongoose, { Schema } from 'mongoose';
-import type { IEmailEntry, IEmailEntryDocument } from '../types/prize';
+import type { IEmailEntry, IEmailEntryDocument } from '../types/prize.ts';
 
 const EmailEntrySchema = new Schema<IEmailEntryDocument>({
   email: {
@@ -63,18 +63,18 @@ EmailEntrySchema.index({ prizeTier: 1 });
 EmailEntrySchema.index({ email: 1, sessionId: 1 }, { unique: true });
 
 // Virtual for prize won status
-EmailEntrySchema.virtual('hasWonPrize').get(function() {
+EmailEntrySchema.virtual('hasWonPrize').get(function () {
   return !!(this.prizeWon && this.prizeId);
 });
 
 // Method to mark as invalid
-EmailEntrySchema.methods.markAsInvalid = function() {
+EmailEntrySchema.methods.markAsInvalid = function () {
   this.isValid = false;
   return this.save();
 };
 
 // Method to assign prize
-EmailEntrySchema.methods.assignPrize = function(prizeId: string, prizeName: string, tier: number) {
+EmailEntrySchema.methods.assignPrize = function (prizeId: string, prizeName: string, tier: number) {
   this.prizeId = prizeId;
   this.prizeWon = prizeName;
   this.prizeTier = tier;
@@ -82,7 +82,7 @@ EmailEntrySchema.methods.assignPrize = function(prizeId: string, prizeName: stri
 };
 
 // Static method to get email statistics
-EmailEntrySchema.statics.getStats = function() {
+EmailEntrySchema.statics.getStats = function () {
   return this.aggregate([
     {
       $group: {
@@ -97,12 +97,12 @@ EmailEntrySchema.statics.getStats = function() {
 };
 
 // Static method to get entries by session
-EmailEntrySchema.statics.getBySession = function(sessionId: string) {
+EmailEntrySchema.statics.getBySession = function (sessionId: string) {
   return this.find({ sessionId }).sort({ timestamp: -1 });
 };
 
 // Static method to check for duplicates
-EmailEntrySchema.statics.isDuplicate = function(email: string, sessionId: string) {
+EmailEntrySchema.statics.isDuplicate = function (email: string, sessionId: string) {
   return this.findOne({ email, sessionId });
 };
 

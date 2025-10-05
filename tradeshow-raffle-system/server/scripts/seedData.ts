@@ -2,8 +2,9 @@ import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import { connectDatabase, disconnectDatabase } from '../src/database/connection.js';
 import { PrizeTier } from '../src/models/PrizeTeir.ts';
-import { Prize } from '../src/models/Prize.js';
+import { Prize } from '../src/models/Prize.ts';
 import { Session } from '../src/models/Session.ts';
+import { EmailEntry } from '../src/models/EmailEntry.ts';
 
 dotenv.config();
 
@@ -219,29 +220,29 @@ const SAMPLE_PRIZES = {
 
 async function seedPrizeTiers() {
   console.log('🌱 Seeding prize tiers...');
-  
+
   // Clear existing prize tiers
   await PrizeTier.deleteMany({});
-  
+
   // Insert new prize tiers
   const prizeTiers = await PrizeTier.insertMany(PRIZE_TIERS);
   console.log(`✅ Created ${prizeTiers.length} prize tiers`);
-  
+
   return prizeTiers;
 }
 
 async function seedPrizes() {
   console.log('🌱 Seeding prizes...');
-  
+
   // Clear existing prizes
   await Prize.deleteMany({});
-  
+
   const allPrizes = [];
-  
+
   // Create prizes for each tier
   for (const [tierStr, prizes] of Object.entries(SAMPLE_PRIZES)) {
     const tier = parseInt(tierStr);
-    
+
     for (const prizeData of prizes) {
       const prize = {
         ...prizeData,
@@ -251,46 +252,48 @@ async function seedPrizes() {
       allPrizes.push(prize);
     }
   }
-  
+
   const createdPrizes = await Prize.insertMany(allPrizes);
   console.log(`✅ Created ${createdPrizes.length} prizes`);
-  
+
   return createdPrizes;
 }
 
 async function createInitialSession() {
   console.log('🌱 Creating initial session...');
-  
+
   // Clear existing sessions
   await Session.deleteMany({});
-  
+
   // Create new session
   const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   const session = await Session.create({
     sessionId,
     startTime: new Date(),
-    isActive: true
+    isActive: true,
+    totalEntries: 0,
+    prizesAwarded: 0
   });
   console.log(`✅ Created initial session: ${session.sessionId}`);
-  
+
   return session;
 }
 
 async function validateData() {
   console.log('🔍 Validating seeded data...');
-  
+
   // Check prize tiers
   const prizeTierCount = await PrizeTier.countDocuments();
   console.log(`📊 Prize tiers: ${prizeTierCount}`);
-  
+
   // Check prizes
   const prizeCount = await Prize.countDocuments();
   console.log(`📊 Prizes: ${prizeCount}`);
-  
+
   // Check sessions
   const sessionCount = await Session.countDocuments();
   console.log(`📊 Sessions: ${sessionCount}`);
-  
+
   // Validate prize distribution
   const prizeStats = await Prize.aggregate([
     {
@@ -302,16 +305,16 @@ async function validateData() {
     },
     { $sort: { _id: 1 } }
   ]);
-  
+
   console.log('📊 Prize distribution by tier:');
   prizeStats.forEach(stat => {
     console.log(`  Tier ${stat._id}: ${stat.remainingQuantity}/${stat.totalQuantity} remaining`);
   });
-  
+
   // Validate total prizes = 350
   const totalPrizes = prizeStats.reduce((sum, stat) => sum + stat.totalQuantity, 0);
   console.log(`📊 Total prizes: ${totalPrizes} (target: 350)`);
-  
+
   if (totalPrizes !== 350) {
     console.warn(`⚠️ Warning: Total prizes (${totalPrizes}) does not match target (350)`);
   }
@@ -320,20 +323,44 @@ async function validateData() {
 async function seedDatabase() {
   try {
     console.log('🚀 Starting database seeding...');
-    
-    // Connect to database
-    await connectDatabase();
-    
+    console.log('📋 Environment check:');
+    console.log('  - MONGODB_URI:', process.env.MONGODB_URI ? 'Set' : 'Not set');
+    console.log('  - NODE_ENV:', process.env.NODE_ENV || 'Not set');
+
+    // Check if MONGODB_URI is set
+    if (!process.env.MONGODB_URI) {
+      console.error('❌ MONGODB_URI environment variable is not set!');
+      console.error('Please create a .env file with MONGODB_URI=mongodb://localhost:27017/tradeshow-raffle');
+      process.exit(1);
+    }
+
+    console.log('🔗 Connecting to database...');
+    console.log('  - Connection string:', process.env.MONGODB_URI.substring(0, 50) + '...');
+
+    // Connect to database with timeout
+    const connectionPromise = connectDatabase();
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Database connection timeout after 10 seconds')), 10000)
+    );
+
+    await Promise.race([connectionPromise, timeoutPromise]);
+    console.log('✅ Database connected successfully!');
+
     // Seed data
+    console.log('🌱 Starting to seed prize tiers...');
     await seedPrizeTiers();
+
+    console.log('🌱 Starting to seed prizes...');
     await seedPrizes();
+
+    console.log('🌱 Starting to create initial session...');
     await createInitialSession();
-    
+
     // Validate data
     await validateData();
-    
+
     console.log('✅ Database seeding completed successfully!');
-    
+
   } catch (error) {
     console.error('❌ Error seeding database:', error);
     throw error;
@@ -344,7 +371,7 @@ async function seedDatabase() {
 }
 
 // Run seeding if this file is executed directly
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   seedDatabase()
     .then(() => {
       console.log('🎉 Seeding process completed');

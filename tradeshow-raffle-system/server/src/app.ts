@@ -9,6 +9,9 @@ import { connectionInstance } from './database/connection.js';
 import healthRoutes from './routes/health.ts';
 import emailRoutes from './routes/email.ts';
 
+// Import services
+import SocketService from './services/socketService.ts';
+
 dotenv.config();
 
 const app = express();
@@ -28,14 +31,8 @@ app.use(express.json());
 app.use('/health', healthRoutes);
 app.use('/api/emails', emailRoutes);
 
-// Socket.IO connection event handler
-io.on('connection', (socket) => {
-  console.log('Client connected:', socket.id);
-
-  socket.on('disconnect', () => {
-    console.log('Client disconnected:', socket.id);
-  });
-});
+// Initialize SocketService with advanced WebSocket handling
+const socketService = new SocketService(io);
 
 // Start the server
 const PORT = process.env.PORT || 3001;
@@ -44,7 +41,7 @@ async function startServer() {
   try {
     // Connect to database first
     await connectionInstance.connect();
-    
+
     // Start the server
     server.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);

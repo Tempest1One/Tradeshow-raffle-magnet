@@ -1,10 +1,11 @@
 import type { Request, Response } from 'express';
 import { EmailEntry } from '../models/EmailEntry.ts';
+import { EmailEventHandler } from '../handlers/emailEventHandler.ts';
 
 export const createEmailEntry = async (req: Request, res: Response) => {
   try {
-    const { email, sessionId } = req.body;
-    
+    const { email, sessionId, ipAddress, userAgent } = req.body;
+
     // Validate required fields
     if (!email || !sessionId) {
       return res.status(400).json({
@@ -12,35 +13,24 @@ export const createEmailEntry = async (req: Request, res: Response) => {
         message: 'Missing required fields: email, sessionId'
       });
     }
-    
-    // Check for duplicates
-    const existingEntry = await (EmailEntry as any).isDuplicate(email, sessionId);
-    if (existingEntry) {
-      return res.status(409).json({
-        success: false,
-        message: 'Email already exists in this session'
-      });
+
+    // Use centralized EmailEventHandler
+    const result = await EmailEventHandler.handleEmailSubmission(
+      null, // No socket for REST API
+      {
+        email,
+        ipAddress: ipAddress || 'unknown',
+        userAgent: userAgent || 'REST API'
+      },
+      sessionId
+    );
+
+    if (result.success) {
+      res.status(201).json(result);
+    } else {
+      res.status(409).json(result);
     }
-    
-    // Create new email entry
-    const emailEntry = new EmailEntry({
-      email,
-      sessionId,
-      timestamp: new Date()
-    });
-    
-    await emailEntry.save();
-    
-    res.status(201).json({
-      success: true,
-      message: 'Email entry created successfully',
-      data: {
-        id: emailEntry._id,
-        email: emailEntry.email,
-        timestamp: emailEntry.timestamp
-      }
-    });
-    
+
   } catch (error) {
     console.error('Error creating email entry:', error);
     res.status(500).json({
